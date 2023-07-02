@@ -7,6 +7,8 @@
     import Leaderboard from "../components/pdf/Leaderboard.svelte";
     import RegionRanking from "../components/pdf/RegionRanking.svelte";
     import UsersList from "../components/UsersList.svelte";
+    import Deliveries from "../components/pdf/Deliveries.svelte";
+    import Delivery from "../components/pdf/Delivery.svelte";
 
     onMount(() => {});
 </script>
@@ -35,6 +37,14 @@
 
         <Route path="/inventory/*">
             <Inventory />
+        </Route>
+
+        <Route path="/deliveries/*">
+            <Deliveries />
+        </Route>
+
+        <Route path="/delivery/*">
+            <Delivery />
         </Route>
     </Router>
 </main>

@@ -7,6 +7,7 @@
     import BranchRanking from "../components/xlxs/BranchRanking.svelte";
     import RegionRanking from "../components/xlxs/RegionRanking.svelte";
     import Inventory from "../components/xlxs/Inventory.svelte";
+    import Deliveries from "../components/xlxs/Deliveries.svelte";
 
     onMount(() => {});
 </script>
@@ -33,10 +34,12 @@
             <RegionRanking />
         </Route>
 
-
-
         <Route path="/inventory/*">
             <Inventory />
+        </Route>
+
+        <Route path="/deliveries/*">
+            <Deliveries />
         </Route>
     </Router>
 </main>

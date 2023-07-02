@@ -1,3 +1,9 @@
+import dayjs from "dayjs";
+import customParseFormat from 'dayjs/plugin/customParseFormat'
+
+dayjs.extend(customParseFormat)
+
+
 export const addCommas = (number, dp) => {
     return number.toLocaleString("en-US", {
         minimumFractionDigits: dp,
@@ -33,4 +39,16 @@ export const numberFormat = (number, options) => {
     let n = formatter.format(number);
 
     return n;
+}
+
+export const formatDate = (d) => {
+
+    // if date includes time
+    if (d.length > 12) {
+        return dayjs(d).format("MMM DD 'YY H:m:s");
+
+    } else {
+        return dayjs(d).format("MMM DD 'YY");
+
+    }
 }
