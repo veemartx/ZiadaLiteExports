@@ -12,9 +12,9 @@
 
     const location = useLocation();
 
-    let branch, from, to;
+    let type, from, to, productId;
 
-    let deliveries = [];
+    let productTransactions = {};
 
     let activeBranches = [];
 
@@ -55,22 +55,25 @@
         const urlSearchParams = new URLSearchParams(qs);
         const params = Object.fromEntries(urlSearchParams.entries());
 
-        branch = params.branch || "";
+        type = params.type || "";
 
         from = params.from || "";
         to = params.to || "";
+
+        productId = params.pid || "";
     }
 
-    const getDeliveries = async () => {
+    const getProductTransactions = async () => {
         let dt = {
-            branch: branch,
-            dateFrom: from,
-            dateTo: to,
+            type: type,
+            from: from,
+            to: to,
+            pid: productId,
         };
         try {
             let response = await axios({
                 method: "post",
-                url: `${apiBaseUrl}getDeliveries.php`,
+                url: `${apiBaseUrl}getProductTransactions.php`,
                 data: dt,
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded",
@@ -79,7 +82,7 @@
 
             // console.log(response);
 
-            deliveries = response.data;
+            productTransactions = response.data;
 
             generatePdf();
         } catch (err) {
@@ -92,33 +95,31 @@
 
         let pdfHeaderTitles = [
             { text: "No", bold: true, fontSize: 10 },
-            { text: "Branch", bold: true, fontSize: 10 },
-            { text: "To", bold: true, fontSize: 10 },
-            { text: "Receipt", bold: true, fontSize: 10 },
-            { text: "Items", bold: true, fontSize: 10 },
-            { text: "Cost + dlvry", bold: true, fontSize: 9 },
-            { text: "Retail", bold: true, fontSize: 10 },
+            { text: "Name", bold: true, fontSize: 10 },
+            { text: "Code", bold: true, fontSize: 10 },
             { text: "Init", bold: true, fontSize: 10 },
+            { text: "Branch", bold: true, fontSize: 10 },
+            { text: "Receipt", bold: true, fontSize: 9 },
+            { text: "Qty", bold: true, fontSize: 9 },
             { text: "Date", bold: true, fontSize: 10 },
         ];
 
         let pdfBodyTableWidths = [
             "5%",
-            "10%",
-            "12%",
-            "15%",
-            "6%",
-            "14%",
-            "8%",
-            "12%",
             "20%",
+            "10%",
+            "15%",
+            "13%",
+            "12%",
+            "10%",
+            "15%",
         ];
 
         // have make the branch header
         activeBranches.forEach((branch) => {
             // filter the branch ones
-            let branchValues = deliveries.filter((v) => {
-                if (v.hostBranch == branch) {
+            let branchValues = productTransactions.transactions.filter((v) => {
+                if (v.branch == branch) {
                     return v;
                 }
             });
@@ -145,40 +146,34 @@
                     },
 
                     {
-                        text: v.hostBranch,
+                        text: v.name,
                         style: "reportValue",
                     },
 
                     {
-                        text: v.destination,
+                        text: v.code,
                         style: "reportValue",
                     },
                     {
-                        text: v.receiptNumber,
-                        style: "reportValue",
-                    },
-
-                    {
-                        text: v.products.length,
-                        style: "reportValue",
-                    },
-                    {
-                        text: `${addCommas(
-                            parseFloat(v.totalCost)
-                        )} + ${addCommas(parseFloat(v.deliveryCost))}`,
-                        style: "reportValue",
-                    },
-                    {
-                        text: addCommas(parseFloat(v.totalRetail, 2)),
-                        style: "reportValue",
-                    },
-                    {
-                        text: v.createdBy,
+                        text: v.init,
                         style: "reportValue",
                     },
 
                     {
-                        text: formatDate(v.createdAt),
+                        text: v.branch,
+                        style: "reportValue",
+                    },
+                    {
+                        text: v.receipt,
+                        style: "reportValue",
+                    },
+                    {
+                        text: v.qty,
+                        style: "reportValue",
+                    },
+
+                    {
+                        text: formatDate(v.date),
                         style: "reportValue",
                     },
                 ]);
@@ -289,7 +284,7 @@
                             [
                                 {
                                     border: [false, false, false, false],
-                                    text: `Delivery Reports`,
+                                    text: `${productTransactions.name} [${productTransactions.code}]`,
                                     style: "mainTitle",
                                 },
                                 {
@@ -301,12 +296,9 @@
                             [
                                 {
                                     border: [false, false, false, false],
-                                    text:
-                                        branch == "All"
-                                            ? `Deliveries From All Branches Between ${formatDate(
-                                                  from
-                                              )} & ${formatDate(to)}`
-                                            : `Deliveries From ${branch} Branches Between ${from} & ${to}`,
+                                    text: `${type}s Between ${formatDate(
+                                        from
+                                    )} & ${formatDate(to)}`,
                                     fontSize: 10,
                                     bold: true,
                                     color: "red",
@@ -458,7 +450,7 @@
 
     onMount(() => {
         getActiveBranches();
-        getDeliveries();
+        getProductTransactions();
     });
 </script>
 

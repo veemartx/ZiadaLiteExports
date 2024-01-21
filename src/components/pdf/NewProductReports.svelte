@@ -1,36 +1,16 @@
 <script>
     // @ts-nocheck
 
-    import { onMount } from "svelte";
     import axios from "axios";
+    import { onMount } from "svelte";
+    import { useParams } from "svelte-navigator";
+    import { newApiBaseUrl } from "../../config/config";
+    import { decode } from "js-base64";
     import pdfMake, { async } from "pdfmake/build/pdfmake";
     import "pdfmake/build/vfs_fonts";
-    import logo from "../../config/logo";
-    import { apiBaseUrl, sharedBaseUrl } from "../../config/config";
-    import { useLocation } from "svelte-navigator";
-    import { addCommas, formatDate } from "../../config/methods";
-
-    const location = useLocation();
-
-    let branch, from, to;
-
-    let deliveries = [];
-
-    let activeBranches = [];
-
-    let companyDetails = {
-        postalCode: "P.o. Box 1263-09303 Nairobi Kenya",
-        companyEmail: "info@pharmaplus.co.ke",
-        physicalLocation: "info@pharmaplus.co.ke",
-        companyPhone: "2547568383494",
-    };
-
-    let qs;
-
-    $: {
-        qs = $location.search;
-        getParamsFromQs(qs);
-    }
+    import logo from "../../config/new_logo";
+    import { addCommas, arraySum, capitalize } from "../../config/methods";
+    import dayjs from "dayjs";
 
     pdfMake.fonts = {
         Liberation: {
@@ -51,155 +31,154 @@
         },
     };
 
-    function getParamsFromQs(qs) {
-        const urlSearchParams = new URLSearchParams(qs);
-        const params = Object.fromEntries(urlSearchParams.entries());
+    const params = useParams();
 
-        branch = params.branch || "";
-
-        from = params.from || "";
-        to = params.to || "";
-    }
-
-    const getDeliveries = async () => {
-        let dt = {
-            branch: branch,
-            dateFrom: from,
-            dateTo: to,
-        };
-        try {
-            let response = await axios({
-                method: "post",
-                url: `${apiBaseUrl}getDeliveries.php`,
-                data: dt,
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-            });
-
-            // console.log(response);
-
-            deliveries = response.data;
-
-            generatePdf();
-        } catch (err) {
-            console.log(err);
-        }
+    let companyDetails = {
+        postalCode: "P.o. Box 1263-09303 Nairobi Kenya",
+        companyEmail: "info@pharmaplus.co.ke",
+        physicalLocation: "info@pharmaplus.co.ke",
+        companyPhone: "2547568383494",
     };
+
+    let filters;
+
+    let products = [];
+
+    let filteredProducts = [];
+
+    $: {
+        filters = JSON.parse(decode($params.filters));
+    }
 
     const generatePdfBody = () => {
         let pdfBody = [];
 
         let pdfHeaderTitles = [
-            { text: "No", bold: true, fontSize: 10 },
-            { text: "Branch", bold: true, fontSize: 10 },
-            { text: "To", bold: true, fontSize: 10 },
-            { text: "Receipt", bold: true, fontSize: 10 },
-            { text: "Items", bold: true, fontSize: 10 },
-            { text: "Cost + dlvry", bold: true, fontSize: 9 },
-            { text: "Retail", bold: true, fontSize: 10 },
-            { text: "Init", bold: true, fontSize: 10 },
-            { text: "Date", bold: true, fontSize: 10 },
+            { text: "No", bold: true, fontSize: 9 },
+            { text: "Name", bold: true, fontSize: 9 },
+            { text: "Code", bold: true, fontSize: 9 },
+            { text: "Type", bold: true, fontSize: 9 },
+            { text: "Region", bold: true, fontSize: 9 },
+            { text: "Branch", bold: true, fontSize: 9 },
+            { text: "Qty", bold: true, fontSize: 9 },
+            { text: "Exp", bold: true, fontSize: 9 },
+            { text: "Price", bold: true, fontSize: 9 },
+            { text: "Value", bold: true, fontSize: 9 },
         ];
 
         let pdfBodyTableWidths = [
-            "5%",
-            "10%",
-            "12%",
-            "15%",
             "6%",
-            "14%",
-            "8%",
-            "12%",
             "20%",
+            "7%",
+            "5%",
+            "12%",
+            "10%",
+            "9%",
+            "7%",
+            "10%",
+            "10%",
         ];
 
-        // have make the branch header
-        activeBranches.forEach((branch) => {
-            // filter the branch ones
-            let branchValues = deliveries.filter((v) => {
-                if (v.hostBranch == branch) {
-                    return v;
-                }
-            });
+        let tableBody = [];
 
-            if (branchValues.length == 0) {
-                return;
+        tableBody.push(pdfHeaderTitles);
+
+        filteredProducts.forEach((p, i) => {
+            let type;
+            if (p.offerName == "Dead Stock") {
+                type = "D.S";
+            } else if (p.offerName === "Short Exp") {
+                type = "S.E";
             } else {
-                pdfBody.push({
-                    margin: [15, 15, 15, 0],
-                    style: "tableSubTitleName",
-                    text: branch,
-                });
+                type = p.offerName;
             }
 
-            let tableBody = [];
+            //     // striped
+            let fillColor = "#f7f7f7";
 
-            tableBody.push(pdfHeaderTitles);
-
-            branchValues.forEach((v, i) => {
-                tableBody.push([
-                    {
-                        text: i + 1,
-                        style: "reportNo",
-                    },
-
-                    {
-                        text: v.hostBranch,
-                        style: "reportValue",
-                    },
-
-                    {
-                        text: v.destination,
-                        style: "reportValue",
-                    },
-                    {
-                        text: v.receiptNumber,
-                        style: "reportValue",
-                    },
-
-                    {
-                        text: v.products.length,
-                        style: "reportValue",
-                    },
-                    {
-                        text: `${addCommas(
-                            parseFloat(v.totalCost)
-                        )} + ${addCommas(parseFloat(v.deliveryCost))}`,
-                        style: "reportValue",
-                    },
-                    {
-                        text: addCommas(parseFloat(v.totalRetail, 2)),
-                        style: "reportValue",
-                    },
-                    {
-                        text: v.createdBy,
-                        style: "reportValue",
-                    },
-
-                    {
-                        text: formatDate(v.createdAt),
-                        style: "reportValue",
-                    },
-                ]);
-            });
-
-            pdfBody.push({
-                margin: [15, 5, 15, 15],
-                layout: "lightHorizontalLines",
-                table: {
-                    widths: pdfBodyTableWidths,
-                    headerRows: 1,
-                    body: tableBody,
+            if (i % 2 == 0) {
+                fillColor = "#f7f0f0";
+            }
+            tableBody.push([
+                {
+                    text: i + 1,
+                    style: "reportValue",
+                    fillColor: fillColor,
                 },
-            });
+
+                {
+                    text: p.productName,
+                    style: "reportValue",
+                    fillColor: fillColor,
+                },
+
+                {
+                    text: p.productCode,
+                    style: "reportValue",
+                    fillColor: fillColor,
+                },
+
+                {
+                    text: type,
+                    style: {
+                        fontSize: 9,
+                        bold: true,
+                        color: type === "D.S" ? "crimson" : "orange",
+                    },
+                    fillColor: fillColor,
+                },
+                {
+                    text: p.region,
+                    style: "reportValue",
+                    fillColor: fillColor,
+                },
+
+                {
+                    text: p.branch,
+                    style: "reportValue",
+                    fillColor: fillColor,
+                },
+                {
+                    text: `${Math.floor(
+                        parseInt(p.qty) / parseInt(p.packSize),
+                    )}W ${parseInt(p.qty) % parseInt(p.packSize)}P`,
+                    style: "reportValue",
+                    fillColor: fillColor,
+                },
+                {
+                    text: dayjs(p.expiryDate).format("MMM YY"),
+                    style: "reportValue",
+                    fillColor: fillColor,
+                },
+                {
+                    text: p.price,
+                    style: "reportValue",
+                    fillColor: fillColor,
+                },
+                {
+                    text: addCommas(parseInt(p.price) * parseInt(p.qty), 2),
+                    style: {
+                        bold: true,
+                        fontSize: 9,
+                    },
+                    fillColor: fillColor,
+                },
+            ]);
+        });
+
+        pdfBody.push({
+            margin: [15, 5, 15, 15],
+            layout: "lightHorizontalLines",
+            table: {
+                widths: pdfBodyTableWidths,
+                headerRows: 1,
+                body: tableBody,
+            },
         });
 
         return pdfBody;
     };
-
     const generatePdf = () => {
-        //
         var docDefinition = {
             pageMargins: [0, 5, 5, 5],
 
@@ -289,34 +268,72 @@
                             [
                                 {
                                     border: [false, false, false, false],
-                                    text: `Delivery Reports`,
+                                    text: "Product Reports",
                                     style: "mainTitle",
                                 },
                                 {
                                     border: [false, false, false, false],
-                                    text: "ZiadaLite",
+                                    text: "ZIADALITE",
                                     style: "documentNumber",
+                                    color: "#2fac4c",
                                 },
                             ],
                             [
                                 {
                                     border: [false, false, false, false],
-                                    text:
-                                        branch == "All"
-                                            ? `Deliveries From All Branches Between ${formatDate(
-                                                  from
-                                              )} & ${formatDate(to)}`
-                                            : `Deliveries From ${branch} Branches Between ${from} & ${to}`,
+                                    text: `Filters:`,
                                     fontSize: 10,
+                                    color: "#5c4b9a",
                                     bold: true,
-                                    color: "red",
                                 },
 
                                 {
                                     border: [false, false, false, false],
-                                    text: `(${formatDate(new Date())})`,
+                                    text: `${addCommas(
+                                        filteredProducts.length,
+                                    )} Products`,
                                     alignment: "right",
-                                    fontSize: 10,
+                                    fontSize: 9,
+                                    bold: true,
+                                    color: "crimson",
+                                },
+                            ],
+                            [
+                                {
+                                    border: [false, false, false, false],
+                                    text: `${
+                                        filters.length == 0
+                                            ? "All Products"
+                                            : filters
+                                                  .map(
+                                                      (f) =>
+                                                          `${capitalize(
+                                                              f.name,
+                                                          )}:${capitalize(
+                                                              f.value,
+                                                          )}`,
+                                                  )
+                                                  .join(" ,")
+                                    }`,
+                                    fontSize: 8,
+                                    alignment: "left",
+                                    color: "#5c4b9a",
+                                },
+
+                                {
+                                    border: [false, false, false, false],
+                                    text: `(Ksh.${addCommas(
+                                        arraySum(
+                                            filteredProducts.map(
+                                                (p) => p.price * p.qty,
+                                            ),
+                                        ),
+                                        2,
+                                    )})`,
+                                    alignment: "right",
+                                    fontSize: 8,
+                                    bold: true,
+                                    color: "crimson",
                                 },
                             ],
                         ],
@@ -423,45 +440,54 @@
                     marginLeft: 10,
                 },
 
-                reportNo: {
-                    margin: [1, 5],
-                },
                 reportValue: {
-                    alignment: "justify",
                     fontSize: 9,
-                    margin: [1, 5],
-                },
-                reportTitle: {
                     alignment: "justify",
-                    fontSize: 11,
-                    margin: [1, 5],
+                    margin: 2,
                 },
-                icon: { font: "Fontello" },
 
-                tableSubTitleName: {
-                    fontSize: 13,
-                    alignment: "left",
-                    fontWeight: "bold",
-                },
+                icon: { font: "Fontello" },
             },
         };
 
-        // pdfMake.createPdf(docDefinition).open({}, window);
-        pdfMake.createPdf(docDefinition).open();
+        pdfMake.createPdf(docDefinition).open({}, window);
+        // pdfMake.createPdf(docDefinition).open();
+    };
+    const filterProducts = (products, filters) => {
+        let filtered = products;
+
+        for (let x = 0; x < filters.length; x++) {
+            const filter = filters[x];
+
+            filtered = filtered.filter((p) => {
+                if (p[filter.prop] === filter.value) {
+                    return p;
+                }
+            });
+        }
+
+        return filtered;
+    };
+    const getProducts = async () => {
+        const response = await axios({
+            method: "POST",
+            url: `${newApiBaseUrl}report-products.php`,
+        });
+
+        return response.data;
     };
 
-    const getActiveBranches = async () => {
-        let response = await axios.get(`${apiBaseUrl}getBranches.php`);
+    onMount(async () => {
+        products = await getProducts();
 
-        activeBranches = response.data;
-    };
+        filteredProducts = filterProducts(products, filters);
 
-    onMount(() => {
-        getActiveBranches();
-        getDeliveries();
+        generatePdf();
     });
 </script>
 
 <main>
-    <div id="iframeContainer" />
+    <main>
+        <div id="iframeContainer" />
+    </main>
 </main>

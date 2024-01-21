@@ -52,3 +52,12 @@ export const formatDate = (d) => {
 
     }
 }
+
+
+export const  capitalize = (str) => {
+    return str.split(' ').map((s) => s.substring(0, 1).toUpperCase() + s.substring(1).toLowerCase()).join(' ');
+}
+
+export const arraySum = (arr) => {
+    return arr.reduce((a, b) => a + b, 0)
+}

@@ -9,6 +9,8 @@
     import UsersList from "../components/UsersList.svelte";
     import Deliveries from "../components/pdf/Deliveries.svelte";
     import Delivery from "../components/pdf/Delivery.svelte";
+    import ProductTransactions from "../components/pdf/ProductTransactions.svelte";
+    import NewProductReports from "../components/pdf/NewProductReports.svelte";
 
     onMount(() => {});
 </script>
@@ -45,6 +47,14 @@
 
         <Route path="/delivery/*">
             <Delivery />
+        </Route>
+
+        <Route path="/new/products/reports/:filters">
+            <NewProductReports />
+        </Route>
+
+        <Route path="/p_transactions/*">
+            <ProductTransactions />
         </Route>
     </Router>
 </main>
