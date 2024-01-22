@@ -10,7 +10,10 @@
     import "pdfmake/build/vfs_fonts";
     import logo from "../../config/new_logo";
     import { addCommas, arraySum, capitalize } from "../../config/methods";
+    import isBetween from "dayjs/plugin/isBetween";
     import dayjs from "dayjs";
+
+    dayjs.extend(isBetween);
 
     pdfMake.fonts = {
         Liberation: {
@@ -281,7 +284,7 @@
                             [
                                 {
                                     border: [false, false, false, false],
-                                    text: `Filters:`,
+                                    text: `:`,
                                     fontSize: 10,
                                     color: "#5c4b9a",
                                     bold: true,
@@ -305,17 +308,34 @@
                                         filters.length == 0
                                             ? "All Products"
                                             : filters
-                                                  .map(
-                                                      (f) =>
-                                                          `${capitalize(
+                                                  .map((f) => {
+                                                      if (
+                                                          f.prop ===
+                                                              "expiryDate" ||
+                                                          f.prop === "addedOn"
+                                                      ) {
+                                                          return `${capitalize(
+                                                              f.name,
+                                                          )}: Between ${dayjs(
+                                                              f.value.min,
+                                                          ).format(
+                                                              "MMM YYYY",
+                                                          )} & ${dayjs(
+                                                              f.value.max,
+                                                          ).format(
+                                                              "MMM YYYY",
+                                                          )}`;
+                                                      } else {
+                                                          return `${capitalize(
                                                               f.name,
                                                           )}:${capitalize(
                                                               f.value,
-                                                          )}`,
-                                                  )
-                                                  .join(" ,")
+                                                          )}`;
+                                                      }
+                                                  })
+                                                  .join(",")
                                     }`,
-                                    fontSize: 8,
+                                    fontSize: 9,
                                     alignment: "left",
                                     color: "#5c4b9a",
                                 },
@@ -453,13 +473,32 @@
         pdfMake.createPdf(docDefinition).open({}, window);
         // pdfMake.createPdf(docDefinition).open();
     };
-    const filterProducts = (products, filters) => {
+
+    const filterByDate = (filter, products) => {
+        return products.filter((p) => {
+            if (
+                dayjs(p[filter.prop]).isBetween(
+                    dayjs(filter.value.min),
+                    dayjs(filter.value.max),
+                )
+            ) {
+                return p;
+            }
+        });
+    };
+    const filterProducts = (products, activeFilters) => {
         let filtered = products;
 
-        for (let x = 0; x < filters.length; x++) {
-            const filter = filters[x];
+        for (let x = 0; x < activeFilters.length; x++) {
+            const filter = activeFilters[x];
+
+            if (filter.prop == "expiryDate" || filter.prop == "addedOn") {
+                filtered = filterByDate(filter, filtered);
+                continue;
+            }
 
             filtered = filtered.filter((p) => {
+                // check if filter is date;
                 if (p[filter.prop] === filter.value) {
                     return p;
                 }
@@ -479,6 +518,8 @@
 
     onMount(async () => {
         products = await getProducts();
+
+        console.log(filters);
 
         filteredProducts = filterProducts(products, filters);
 
